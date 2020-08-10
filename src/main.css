@@ -1,7 +1,22 @@
+.ps-container {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(25%, 1fr));
+    grid-template-rows: auto auto 1fr auto;
+    grid-template-areas: 
+        "actionbar   actionbar"
+        "editor-tabs app-tabs"
+        "editor      view"
+        "footer      footer";
+}
+
 .ps-tabs {
+    grid-area: editor-tabs;
     display: block;
     border: 1px solid black;
     border-radius: 3px 3px 0px 0px;
+}
+.ps-tabs--app-tabs {
+    grid-area: app-tabs;
 }
 .ps-tabs__tab {
     cursor: pointer;
@@ -16,14 +31,27 @@
     background-color: #DDE;
 }
 .ps-editor-container {
+    grid-area: editor;
     border: 1px solid black;
     border-top: none;
     border-radius: 0px 0px 3px 3px;
+}
+.ps-editor-container .CodeMirror {
+    height: 100%;
+    width: 100%;
+    max-width: 100vw;
+    max-height: 1000vh;
+}
+.ps-canvas-container {
+    grid-area: view;
+    border: 1px solid black;
+    overflow: auto;
 }
 .ps-canvas {
     border: 1px solid black;
 }
 .ps-actionbar {
+    grid-area: actionbar;
     padding: 0.5ch 0.5em;
 }
 .ps-actionbar__action {
@@ -34,4 +62,13 @@
 }
 .ps-actionbar__action:hover {
     background-color: #EEE;
+}
+.ps-examplelist {
+    grid-area: view;
+    display: inline-block;
+    border: 1px solid black;
+}
+.ps-examplelist__example-button {
+    border: 1px solid black;
+    padding: 0.5ch 0.5em;
 }
