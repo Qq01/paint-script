@@ -1,206 +1,22 @@
-/**
- * 
- * @param {string} tagName 
- * @param  {...HTMLElement} childs 
- * @returns {HTMLElement}
- */
-function elem(tagName, ...childs) {
-    const $el = document.createElement(tagName);
-    childs.forEach($c => {
-        $el.appendChild($c);
-    });
-    return $el;
-}
-function text(txt) {
-    return document.createTextNode(txt);
-}
-function makeTabs(addTabBtn = true, ...tabsNames) {
-    const tabClass = 'ps-tabs__tab';
-    const tabSelectedClass = 'ps-tabs__tab--selected';
-    const addTabClass = 'ps-tabs__add-tab';
-    function addTab({dispatchEvents = true, name} = {}) {
-        const index = $tabs.tabCount++;
-        const $tab = elem('div', text(name ? name : index));
-        $tab.dataset.name = name ? name : index;
-        $tab.dataset.tabIndex = index;
-        $tab.classList.add(tabClass);
-        $tab.onclick = function(){selectTab(index)};
-        if (addTabBtn) {
-            $tabs.lastChild.insertAdjacentElement('beforebegin', $tab);
-        } else {
-            $tabs.appendChild($tab);
-        }
-        if (dispatchEvents) {
-            $tabs.dispatchEvent(new CustomEvent('tabs:add', {detail: {index}}));
-        }
-        selectTab(index, {dispatchEvents});
-    }
-    function selectTab(index, {dispatchEvents = true} = {}) {
-        const $prevTab = $tabs.querySelector(`.${tabSelectedClass}`);
-        if ($prevTab) {
-            $prevTab.classList.remove(tabSelectedClass);
-        }
-        const $nextTab = $tabs.querySelector(`.${tabClass}[data-tab-index="${index}"]`);
-        if ($nextTab) {
-            $nextTab.classList.add(tabSelectedClass);
-            $tabs.selectedTabIndex = index;
-        }
-        if (dispatchEvents) {
-            $tabs.dispatchEvent(new CustomEvent('tabs:change', {detail: {
-                prevTabIndex: $prevTab && $prevTab.dataset.tabIndex ? Number.parseInt($prevTab.dataset.tabIndex) : null,
-                nextTabIndex: $nextTab ? index : null,
-                prevTabName: $prevTab?.dataset.name,
-                nextTabName: $nextTab.dataset.name
-            }}));
-        }
-    }
-    function clearTabs() {
-        $tabs.tabCount = 0;
-        $tabs.selectedTabIndex = 0;
-        $tabs.querySelectorAll(`.${tabClass}:not(.${addTabClass})`).forEach($t => {
-            $tabs.removeChild($t);
-        });
-    }
-    const $tabs = elem('div');
-    if (addTabBtn) {
-        const $addTab = elem('div', text('Add'));
-        $addTab.onclick = addTab;
-        $addTab.classList.add(addTabClass, tabClass);
-        $tabs.appendChild($addTab);
-    }
-    $tabs.classList.add('ps-tabs');
-    $tabs.addTab = e => addTab({dispatchEvents: false});
-    $tabs.tabCount = 0;
-    $tabs.selectedTabIndex = 0;
-    if (tabsNames.length) {
-        tabsNames.forEach(name => addTab({name}));
-    } else {
-        addTab();
-    }                
-    $tabs.clearTabs = clearTabs;
-    $tabs.selectTab = selectTab;
-    return $tabs;
-}
-function makeEditor() {
-    const defaultFunctionText = `//Script No. 0
-ps.resizeView(256, 256);
-loop(() => {
-    let time = performance.now();
-    let b = Math.sin(time * 0.001);
-    ps.eachPixel(data => {
-    data.rgba[0] = data.u;
-        data.rgba[1] = data.v;
-    data.rgba[2] = b;
-        data.rgba[3] = 1;
-    });
-});`;
-
-    const $editorContainer = elem('div');
-    $editorContainer.classList.add('ps-editor-container');
-    const codeMirror = CodeMirror($editorContainer, {
-        lineNumbers: true,
-        value: defaultFunctionText,
-        viewportMargin: Infinity
-    });
-    $editorContainer.editor = codeMirror;
-    return $editorContainer;
-}
-function makeCanvas() {
-    const $canvas = elem('canvas');
-    $canvas.classList.add('ps-canvas');
-    return $canvas;
-}
-function makeActionbar() {
-    const $ab = elem('div');
-    $ab.classList.add('ps-actionbar');
-    function makeAction(name, label) {
-        const $action = elem('div', text(label));
-        $action.classList.add('ps-actionbar__action');
-        $action.dataset.action = name;
-        $action.onclick = function(){
-            $ab.dispatchEvent(new CustomEvent(`action:${name}`));
-        }
-        $ab.appendChild($action);
-    }
-    makeAction('run', 'Run');
-    makeAction('save', 'Save');
-    makeAction('load', 'Load');
-    return $ab;
-}
-
-const scriptExamples = [
-{
-    title: 'UV to RGB',
-    data:`//UV to RGB
-ps.resizeView(256, 256);//resizing canvas.
-loop(() => {// loop executes passed function once per frame.
-    let time = performance.now();
-    let b = Math.sin(time * 0.001);
-    ps.eachPixel(data => {// function is executed per pixel.
-        //color values passed to function are normalized.
-        //data.u and data.v are normalized x nad y coords.
-        //not normalized pixel position is held in data.x and data.y
-        data.rgba[0] = data.u;
-        data.rgba[1] = data.v;
-        data.rgba[2] = b;
-        data.rgba[3] = 1;//setting alpha channel to 1 so its no longer transparent.
-    });
-});`
-},
-{
-    title: 'PartialRenderer for large canvas',
-    data: `//Script No. 0
-ps.resizeView(1000, 1000);
-const r = ps.partialRenderer();//getting instance of PartialRenderer
-r.setDivision(19);//Ammount of frames needed to fully render image.
-//the bigger value the more visible artefact can be.
-//for best results set value to number that is not divisible by image width
-loop(() => {
-    let time = performance.now();
-    let b = Math.sin(time * 0.001);
-    const img = ps.getImageData();//get image data from canvas
-    r.setImageData(img);//set image data for that we want to process
-    r.eachPixel(data => {//execute function only for 1/19 of canvas pixels
-        data.rgba[0] = data.u;
-        data.rgba[1] = data.v;
-        data.rgba[2] = b;
-        data.rgba[3] = 1;
-    });
-    ps.putImageData(img);//putting back resulted image data to our canvas.
-    r.next();//tell PartialRenderer that we finished rendering in current frame so in next iteration 
-});`
-}
-];
-function makeExampleList() {
-    const $exampleList = elem('div');
-    $exampleList.classList.add('ps-example-list');
-    $exampleList.style.display = 'none';
-    scriptExamples.forEach(example => {
-        const $ex = elem('div');
-        $ex.classList.add('ps-examplelist__example-button');
-        $ex.innerHTML = example.title;
-        $ex.onclick = e => {
-            $exampleList.dispatchEvent(new CustomEvent('example-list:selected', {detail: {
-                ...example
-            }}));
-        }
-        $exampleList.appendChild($ex);
-    });
-    return $exampleList;
-}
-
-function makeResourceContainer() {
-    const $resourceContainer = elem('div');
-    $resourceContainer.classList.add('ps-resource__container');
-    $resourceContainer.style.display = 'none';
-    return $resourceContainer;
-}
+import { elem, text } from "./utils.js";
+import { makeTabs } from "./components/tabs.js";
+import { makeEditor } from "./components/editor.js";
+import { makeCanvas } from "./components/canvas.js";
+import { makeExampleList } from "./components/example-list.js";
+import { makeActionbar } from "./components/actionbar.js";
+import { makeResourceContainer } from "./components/resource-container.js";
 
 export class PaintScript {
     /**
      * @type {PaintScriptAPI}
      */
     #api;
+    /**
+     * 
+     * @type {UI}
+     */
+    #ui;
+    get ui() {return this.#ui;}
     /**
      * 
      * @param {HTMLElement} $root 
@@ -234,6 +50,7 @@ export class PaintScript {
         this.$root.appendChild($canvasContainer);
         this.$resourceContainer = makeResourceContainer();
         this.$root.appendChild(this.$resourceContainer);
+        this.#ui = new UI(this.$resourceContainer);
         /**
          * @type {CanvasRenderingContext2D}
          */
@@ -249,17 +66,6 @@ export class PaintScript {
             }
         });
         this.$appTabs.addEventListener('tabs:change', e => {
-            switch (e.detail.nextTabName) {
-                case 'Canvas':
-                    $canvasContainer.style.display = '';
-                    break;
-                case 'Resources':
-                    this.$resourceContainer.style.display = '';
-                    break;
-                case 'Examples':
-                    this.$exampleList.style.display = '';
-                    break;
-            }
             switch (e.detail.prevTabName) {
                 case 'Canvas':
                     $canvasContainer.style.display = 'none';
@@ -271,6 +77,17 @@ export class PaintScript {
                     this.$exampleList.style.display = 'none';
                     break;
             }
+            switch (e.detail.nextTabName) {
+                case 'Canvas':
+                    $canvasContainer.style.display = '';
+                    break;
+                case 'Resources':
+                    this.$resourceContainer.style.display = '';
+                    break;
+                case 'Examples':
+                    this.$exampleList.style.display = '';
+                    break;
+            }
         });
 
         this.$actionbar.addEventListener('action:run', e => {
@@ -279,6 +96,7 @@ export class PaintScript {
                 this.loopId = null;
             }
             this.actions = [];
+            this.#ui.clear();
             try {
                 this.scripts.forEach(s => {
                     const fn = new Function('ps', 'loop', s.getValue());
@@ -414,6 +232,7 @@ class PaintScriptAPI {
         this.#ps.resizeView(width, height);
     }
     get ctx() { return this.#ps.ctx;}
+    get ui() { return this.#ps.ui;}
     eachPixel = fn => {
         const img = this.ctx.getImageData(0, 0, this.#ps.width, this.#ps.height);
         let x = 0;
@@ -448,6 +267,61 @@ class PaintScriptAPI {
     }
     partialRenderer() {
         return new PartialRenderer();
+    }
+    clear() {
+        this.ctx.clearRect(0, 0, this.#ps.width, this.#ps.height);
+    }
+}
+
+class UI {
+    #instances = new Map();
+    /**
+     * 
+     * @param {HTMLElement} root 
+     */
+    constructor(root) {
+        this.$root = root;
+    }
+    clear = () => {
+        this.$root.innerHTML = '';
+        this.#instances.clear();
+    }
+    get = (label) => {
+        return this.#instances.get(label);
+    }
+    has = (label) => {
+        return this.#instances.has(label);
+    }
+    input = (label, value, {type = 'text', min = 0, max = 1, step = null} = {}) => {
+        const $input = elem('input');
+        const $label = elem('label', text(label), $input);
+        const $container = elem('div', $label);
+        $input.type = type;
+        $input.value = value;
+        if (type == 'range') {
+            $input.min = min;
+            $input.max = max;
+            if (step != null) {
+                $input.step = step;
+            }
+        }
+        const api = {
+            _input: $input,
+            _label: $label,
+            _container: $container,
+            value,
+            setValue: (value) => {
+                $input.value = value;
+            }
+        }
+        $input.onchange = 
+            ['number', 'range'].includes(type) ?
+                e => api.value = $input.valueAsNumber : 
+                e => api.value = $input.value;
+
+        this.$root.appendChild($container);
+        this.#instances.set(label, api);
+        return api;
     }
 }
 
